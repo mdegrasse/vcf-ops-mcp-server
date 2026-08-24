@@ -6,11 +6,11 @@ from dataclasses import dataclass
 
 from mcp.server.fastmcp import Context, FastMCP
 
-from .client import VCFOpsClient
-from .config import load_settings
-from .tools import alerts as alert_tools
-from .tools import metrics as metric_tools
-from .tools import resources as resource_tools
+from vcf_ops_mcp.client import VCFOpsClient
+from vcf_ops_mcp.config import load_settings
+from vcf_ops_mcp.tools import alerts as alert_tools
+from vcf_ops_mcp.tools import metrics as metric_tools
+from vcf_ops_mcp.tools import resources as resource_tools
 
 
 @dataclass
