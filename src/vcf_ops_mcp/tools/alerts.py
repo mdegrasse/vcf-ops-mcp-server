@@ -16,16 +16,16 @@ async def list_alerts(
 ) -> dict[str, Any]:
     """List alerts, optionally scoped to a resource and/or criticality
     (INFORMATION/WARNING/IMMEDIATE/CRITICAL)."""
-    if resource_id:
-        data = await client.get(
-            f"/resources/{resource_id}/alerts",
-            params={"activeOnly": active_only, "alertCriticality": criticality, "page": page, "pageSize": page_size},
-        )
-    else:
-        data = await client.get(
-            "/alerts",
-            params={"activeOnly": active_only, "alertCriticality": criticality, "page": page, "pageSize": page_size},
-        )
+    data = await client.get(
+        "/alerts",
+        params={
+            "resourceId": resource_id,
+            "activeOnly": active_only,
+            "alertCriticality": criticality,
+            "page": page,
+            "pageSize": page_size,
+        },
+    )
     return {"alerts": data.get("alerts", []), "pageInfo": data.get("pageInfo")}
 
 
