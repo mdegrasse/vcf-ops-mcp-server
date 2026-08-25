@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from mcp.server.fastmcp import Context, FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from vcf_ops_mcp.client import VCFOpsClient
 from vcf_ops_mcp.config import load_settings
@@ -26,6 +28,12 @@ async def app_lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
 
 
 mcp = FastMCP("vcf-operations", lifespan=app_lifespan)
+
+
+@mcp.custom_route("/healthz", methods=["GET"])
+async def health_check(_request: Request) -> JSONResponse:
+    """Unauthenticated liveness check for load balancers/orchestrators."""
+    return JSONResponse({"status": "ok"})
 
 
 def _client(ctx: Context) -> VCFOpsClient:

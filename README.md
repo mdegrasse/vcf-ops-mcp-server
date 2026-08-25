@@ -28,16 +28,47 @@ The server acquires a token from `/suite-api/api/auth/token/acquire` on first us
 caches it, and transparently re-acquires it when it's near expiry or rejected with
 401.
 
+Server transport/auth configuration (also via `.env` or real environment variables):
+
+| Variable                  | Description                                                              |
+|---------------------------|---------------------------------------------------------------------------|
+| `VCFOPS_MCP_TRANSPORT`    | `streamable-http` (default) or `stdio`                                    |
+| `VCFOPS_MCP_HOST`         | Bind host for streamable-http (default `127.0.0.1`)                       |
+| `VCFOPS_MCP_PORT`         | Bind port for streamable-http (default `8000`)                            |
+| `VCFOPS_MCP_BEARER_TOKEN` | Required for streamable-http. Clients must send `Authorization: Bearer <value>` |
+
 ## Running
 
+By default this runs as a standalone **remote server** over streamable-http,
+bound to `127.0.0.1:8000`, requiring a bearer token on every request:
+
 ```bash
+export VCFOPS_MCP_BEARER_TOKEN="$(openssl rand -hex 32)"
 vcf-ops-mcp
 # or
 python -m vcf_ops_mcp
 ```
 
-This runs over **stdio**, so register it with an MCP client (Claude Desktop, Claude
-Code, etc.) as a local command, e.g. in Claude Desktop's config:
+`GET /healthz` is unauthenticated (for load balancer/orchestrator liveness checks);
+everything else requires the bearer token. `127.0.0.1` only listens locally — to
+actually reach it from another host, bind `VCFOPS_MCP_HOST=0.0.0.0` (or run it
+behind a reverse proxy) and make sure the bearer token is the only thing standing
+between the network and credentials capable of querying your whole monitored
+environment, so treat it like any other secret and prefer TLS termination (e.g. a
+reverse proxy) in front of it rather than plaintext HTTP over an untrusted network.
+
+Point an MCP client at it as a streamable-http server, e.g. in Claude Code:
+
+```bash
+claude mcp add --transport http vcf-operations http://<host>:8000/mcp \
+  --header "Authorization: Bearer <your-token>"
+```
+
+### Running over stdio instead
+
+For local use where an MCP client spawns the server itself as a subprocess (no
+network exposure needed), set `VCFOPS_MCP_TRANSPORT=stdio` — the bearer token is
+not required in this mode. Example Claude Desktop config:
 
 ```json
 {
@@ -45,6 +76,7 @@ Code, etc.) as a local command, e.g. in Claude Desktop's config:
     "vcf-operations": {
       "command": "/absolute/path/to/.venv/bin/vcf-ops-mcp",
       "env": {
+        "VCFOPS_MCP_TRANSPORT": "stdio",
         "VCFOPS_BASE_URL": "https://ops.example.com",
         "VCFOPS_USERNAME": "admin",
         "VCFOPS_PASSWORD": "changeme"
@@ -53,17 +85,6 @@ Code, etc.) as a local command, e.g. in Claude Desktop's config:
   }
 }
 ```
-
-### Going remote later
-
-The tool definitions in [`server.py`](src/vcf_ops_mcp/server.py) don't depend on the
-transport. To expose this over the network instead of stdio, change the `mcp.run()`
-call in [`__main__.py`](src/vcf_ops_mcp/__main__.py) to
-`mcp.run(transport="streamable-http")` (FastMCP listens on `127.0.0.1:8000` by
-default; configure host/port via `mcp.settings`). Do **not** put this on an
-untrusted network as-is — the server holds credentials capable of querying your
-whole monitored environment, and streamable-http has no built-in access control.
-Put it behind a reverse proxy that enforces bearer-token or mTLS auth first.
 
 ## Tools
 
