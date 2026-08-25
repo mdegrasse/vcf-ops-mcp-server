@@ -1,6 +1,7 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -21,6 +22,14 @@ class ServerSettings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     bearer_token: str | None = None
+    allowed_hosts: Annotated[list[str], NoDecode] = []
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def _split_comma_separated(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [host.strip() for host in value.split(",") if host.strip()]
+        return value
 
 
 def load_settings() -> Settings:

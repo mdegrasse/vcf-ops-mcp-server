@@ -3,11 +3,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from vcf_ops_mcp.client import VCFOpsClient
-from vcf_ops_mcp.config import load_settings
+from vcf_ops_mcp.config import load_server_settings, load_settings
 from vcf_ops_mcp.tools import alerts as alert_tools
 from vcf_ops_mcp.tools import metrics as metric_tools
 from vcf_ops_mcp.tools import resources as resource_tools
@@ -27,7 +28,26 @@ async def app_lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
         await client.aclose()
 
 
-mcp = FastMCP("vcf-operations", lifespan=app_lifespan)
+_server_settings = load_server_settings()
+
+# FastMCP only auto-enables DNS-rebinding-protection Host checks when constructed with the
+# (default) loopback host, using a loopback-only allowlist. This server is deliberately bound
+# to 0.0.0.0 for remote access, so that default never matches the Host header real clients
+# send and every request gets rejected with HTTP 421. Configure the allowlist explicitly from
+# VCFOPS_MCP_ALLOWED_HOSTS instead; if it's unset, rely on the bearer token for auth and skip
+# the Host check rather than silently locking every remote client out.
+_transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=bool(_server_settings.allowed_hosts),
+    allowed_hosts=_server_settings.allowed_hosts,
+)
+
+mcp = FastMCP(
+    "vcf-operations",
+    lifespan=app_lifespan,
+    host=_server_settings.host,
+    port=_server_settings.port,
+    transport_security=_transport_security,
+)
 
 
 @mcp.custom_route("/healthz", methods=["GET"])
