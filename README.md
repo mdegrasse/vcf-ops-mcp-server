@@ -36,6 +36,7 @@ Server transport/auth configuration (also via `.env` or real environment variabl
 | `VCFOPS_MCP_HOST`         | Bind host for streamable-http (default `127.0.0.1`)                       |
 | `VCFOPS_MCP_PORT`         | Bind port for streamable-http (default `8000`)                            |
 | `VCFOPS_MCP_BEARER_TOKEN` | Required for streamable-http. Clients must send `Authorization: Bearer <value>` |
+| `VCFOPS_MCP_ALLOWED_HOSTS` | Comma-separated Host-header allowlist for DNS-rebinding protection (see below) |
 
 ## Running
 
@@ -56,6 +57,14 @@ behind a reverse proxy) and make sure the bearer token is the only thing standin
 between the network and credentials capable of querying your whole monitored
 environment, so treat it like any other secret and prefer TLS termination (e.g. a
 reverse proxy) in front of it rather than plaintext HTTP over an untrusted network.
+
+When `VCFOPS_MCP_HOST` isn't `127.0.0.1`/`localhost`, FastMCP's own DNS-rebinding
+protection (a check against the incoming request's `Host` header) has nothing to
+allowlist by default, since it only auto-configures that allowlist for a loopback
+host. Left unset, no Host-header check is enforced and the bearer token is your
+only gate — fine on a network you trust, but set `VCFOPS_MCP_ALLOWED_HOSTS` to the
+hostname(s)/IP:port clients actually connect through (comma-separated) for defense
+in depth on a shared or untrusted network.
 
 Point an MCP client at it as a streamable-http server, e.g. in Claude Code:
 
