@@ -22,7 +22,11 @@ async def list_resources(
         "adapterKind": adapter_kind,
         "resourceKind": resource_kind,
         "resourceHealth": resource_health,
-        "regex": regex,
+        # Some VCF Operations instances return zero results when `regex=false`
+        # is sent explicitly alongside resourceKind/adapterKind filters with no
+        # `name` present. Only send it when true (the non-default case) so the
+        # request matches what a bare browse-by-kind call expects.
+        "regex": regex if regex else None,
         "page": page,
         "pageSize": page_size,
     }
